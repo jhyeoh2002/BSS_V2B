@@ -3,6 +3,7 @@ import os
 
 # Define the paths
 rawpath = './Raw Data'
+cleanedpath = './Cleaned Data'
 
 # Read the files from the raw data directory
 filenames = os.listdir(rawpath)
@@ -48,5 +49,27 @@ Battery_Data = pd.DataFrame({
 start, end = 9432, 12360
 
 # Save the complete Battery_Data to a CSV file
-Battery_Data.to_csv('Battery_Data.csv', index=False)
-Battery_Data.iloc[start:end].to_csv('Battery_Data_0129_0529.csv', index=False)
+Battery_Data.to_csv('./Cleaned Data/Battery_Data.csv', index=False)
+Battery_Data.iloc[start:end].to_csv('./Cleaned Data/Battery_Data_0129_0529.csv', index=False)
+
+carbon = pd.read_csv('./Cleaned Data/Carbon Intensity Data 2020.csv')
+elecrate = pd.read_csv('./Cleaned Data/ElectricityRate2020.csv')
+weather = pd.read_csv('./Cleaned Data/Weather Data.csv')
+battery = pd.read_csv('./Cleaned Data/Battery_Data_0129_0529.csv')
+
+date_times = pd.date_range(start="2024-01-01 00:00:00", end="2024-12-31 23:00:00", freq="h")
+
+battery['datetime'] = pd.to_datetime(battery["datetime"])
+battery.set_index('datetime')
+
+Full_data = pd.DataFrame({
+    "datetime": date_times,
+    "Carbon Intensity (kgC02eq/kWh)": carbon['kg CO2e'].tolist(), 
+    "Electricity Rate (NT$/kWh)": elecrate['Electricity_Rate_NTD/kWh'].tolist(),
+    "Radiation Intensity, I": weather['Radiation, I'].tolist(),
+    "Temperature,T (deg)":weather['Temp_average'].tolist()
+})
+
+Full_data = Full_data.merge(battery, on="datetime", how="left", suffixes=('', '_new'))
+
+Full_data.to_csv('./Full_Data.csv')
