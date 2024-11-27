@@ -45,6 +45,8 @@ Battery_Data = pd.DataFrame({
     'total': stationA_hourly['batt_num'].values[:14960] + stationB_hourly['batt_num'].values[:14960]
 })
 
+Battery_Data['Available'] = (Battery_Data['total'].fillna(Battery_Data['total'].shift(-24 * 7)) + Battery_Data['total'].fillna(Battery_Data['total'].shift(24 * 7)))/2
+
 # Define start and end for slicing the data
 start, end = 9432, 12360
 
@@ -56,11 +58,16 @@ carbon = pd.read_csv('./Cleaned Data/Carbon Intensity Data 2020.csv')
 elecrate = pd.read_csv('./Cleaned Data/ElectricityRate2020.csv')
 weather = pd.read_csv('./Cleaned Data/Weather Data.csv')
 battery = pd.read_csv('./Cleaned Data/Battery_Data_0129_0529.csv')
+building = pd.read_csv('./Cleaned Data/building.csv')
 
 date_times = pd.date_range(start="2024-01-01 00:00:00", end="2024-12-31 23:00:00", freq="h")
 
 battery['datetime'] = pd.to_datetime(battery["datetime"])
 battery.set_index('datetime')
+battery = battery.drop(columns=['stationA','stationB','total'])
+
+building['datetime'] = pd.to_datetime(building["datetime"])
+building.set_index('datetime')
 
 Full_data = pd.DataFrame({
     "datetime": date_times,
@@ -68,8 +75,9 @@ Full_data = pd.DataFrame({
     "Electricity Rate (NT$/kWh)": elecrate['Electricity_Rate_NTD/kWh'].tolist(),
     "Radiation Intensity, I": weather['Radiation, I'].tolist(),
     "Temperature,T (deg)":weather['Temp_average'].tolist()
-})
+    })
 
 Full_data = Full_data.merge(battery, on="datetime", how="left", suffixes=('', '_new'))
+Full_data = Full_data.merge(building, on="datetime", how="left", suffixes=('', '_new'))
 
-Full_data.to_csv('./Full_Data.csv')
+Full_data[744:912].to_csv('./Full_Data.csv')
