@@ -1,12 +1,14 @@
 import pandas as pd
 import os
+from Raw_Data.get_building_data import get_building_data
+from Raw_Data.get_battery_info import generate_escooter_data
 
 # Define the paths
-rawpath = './Raw Data'
-cleanedpath = './Cleaned Data'
+gogoropath = './Raw_Data/Gogoro'
+cleanedpath = './Cleaned_Data'
 
 # Read the files from the raw data directory
-filenames = os.listdir(rawpath)
+filenames = os.listdir(gogoropath)
 filenames.sort()
 
 # Initialize DataFrames for each station
@@ -16,10 +18,10 @@ stationB = pd.DataFrame(columns=['time','batt_num'])
 # Concatenate data from each station's files into the corresponding DataFrame
 for f in filenames:
     if 'B' in f:
-        raw = pd.read_csv(os.path.join(rawpath, f))
+        raw = pd.read_csv(os.path.join(gogoropath, f))
         stationB = pd.concat([stationB, raw])
     elif 'A' in f:
-        raw = pd.read_csv(os.path.join(rawpath, f))
+        raw = pd.read_csv(os.path.join(gogoropath, f))
         stationA = pd.concat([stationA, raw])
     else:
         continue
@@ -48,17 +50,20 @@ Battery_Data = pd.DataFrame({
 Battery_Data['Available'] = (Battery_Data['total'].fillna(Battery_Data['total'].shift(-24 * 7)) + Battery_Data['total'].fillna(Battery_Data['total'].shift(24 * 7)))/2
 
 # Define start and end for slicing the data
-start, end = 9432, 12360
+batterystart, batteryend = 9432, 12360
 
 # Save the complete Battery_Data to a CSV file
-Battery_Data.to_csv('./Cleaned Data/Battery_Data.csv', index=False)
-Battery_Data.iloc[start:end].to_csv('./Cleaned Data/Battery_Data_0129_0529.csv', index=False)
+Battery_Data.to_csv('./Cleaned_Data/Battery_Data.csv', index=False)
+Battery_Data.iloc[batterystart:batteryend].to_csv('./Cleaned_Data/Battery_Data_0129_0529.csv', index=False)
 
-carbon = pd.read_csv('./Cleaned Data/Carbon Intensity Data 2020.csv')
-elecrate = pd.read_csv('./Cleaned Data/ElectricityRate2020.csv')
-weather = pd.read_csv('./Cleaned Data/Weather Data.csv')
-battery = pd.read_csv('./Cleaned Data/Battery_Data_0129_0529.csv')
-building = pd.read_csv('./Cleaned Data/building.csv')
+get_building_data(stardate="2024-01-29",  enddate="2024-5-29")
+generate_escooter_data()
+
+carbon = pd.read_csv('./Cleaned_Data/Carbon Intensity Data 2020.csv')
+elecrate = pd.read_csv('./Cleaned_Data/ElectricityRate2020.csv')
+weather = pd.read_csv('./Cleaned_Data/Weather Data.csv')
+battery = pd.read_csv('./Cleaned_Data/Battery_Data_0129_0529.csv')
+building = pd.read_csv('./Cleaned_Data/building.csv')
 
 date_times = pd.date_range(start="2024-01-01 00:00:00", end="2024-12-31 23:00:00", freq="h")
 
@@ -80,4 +85,6 @@ Full_data = pd.DataFrame({
 Full_data = Full_data.merge(battery, on="datetime", how="left", suffixes=('', '_new'))
 Full_data = Full_data.merge(building, on="datetime", how="left", suffixes=('', '_new'))
 
-Full_data[744:912].to_csv('./Full_Data.csv')
+Full_data[672:3600].to_csv('./Full_Data.csv', index=False)
+
+
