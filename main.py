@@ -10,7 +10,7 @@ from scipy.optimize import minimize, basinhopping
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-from functions.generatecost import generate_building_cost, generate_ev_cost
+from Data.Raw_Data.generatecost import generate_building_cost, generate_ev_cost
 # from functions.immediatecharging import get_EVimmediateCharge
 from functions.optimization import Optimization
 from functions.readcsv import readData
@@ -20,7 +20,7 @@ from scipy.stats import truncnorm
 # TODO Set parameters (Modifiable)
 
 #Set a name for this run
-projName = 'Full'
+projName = 'tempfull'
 
 #Charging Rate and Efficiency
 charging_rate = 14       #kW   #Charging rate for gogoro station
@@ -41,8 +41,8 @@ n_station = 38*2 # Number of batteries at the station
 SOC_thr = 0.7 # Required leaving SOC
 
 # Choose tnum
-tnum = int(168) # 24 for a day optimization, 168 for a week optimization
-days = int(tnum/24)
+days = int(45)
+tnum = int(days*24) # 24 for a day optimization
 
 data = pd.read_csv('./Data/Full_Data.csv')
 batteryinfo = pd.read_csv('./Data/Battery_info.csv')
@@ -68,63 +68,11 @@ a_vt = batteryinfo['Availability']
 t_a_v = batteryinfo['Arrival_hour']
 t_d_v = batteryinfo['Departure_hour']
 SOC_a_v = batteryinfo['Arrival_SOC']
-SOC_d_v = batteryinfo['Departure_SOC']
-
-S_R_t = []
-roof_area = 120 #m^2
-pv_eff = 0.2036 #efficiency of PV cells
-
-for i in range(tnum): ##Calculate generation by PV cells (kW)
-    S_R_t.append(pv_eff*roof_area*Rad[i]*(1-0.005*(Temp[i]-25))/1000)
-    
-c_G2B_t = []
-c_G2V_t = []。
-pi_Cn_t = data['Electricity Rate (NT$/kWh)']
+SOC_d_v = batteryinfo['Departure_SOC']    
 D_B_t = data['energy (kWh)']
-
-for chosen_date in chosen_dateli:
-    c_G2B_t.extend(generate_building_cost('twohigh', chosen_date))
-    c_G2V_t.extend(generate_ev_cost('evlow', chosen_date))
-
-print(len(c_G2B_t),len(c_G2V_t))
-
-
-V2B = Optimization(chargingRate = charging_rate, chargingEff = charging_eff , 
-                   gammaPeak = 1/3, gammaCost = 1/3, gammaCarbon = 1/3, 
-                   lowestSoC = EVLowerBoundSoC, highestSoC = EVUpperBoundSoC)
 
 date = pd.date_range(start='2023-06-16', end='2023-06-22', freq='D')
 date_strings = date.strftime('%Y-%m-%d').tolist()
-
-def get_EVimmediateCharge(days):
-
-    EVChargingImmediate = np.zeros(24*days) #Create empty array for immediate charging
-    
-    for i in range(len(t_a_v)):
-        
-        required_energy = (SOC_d_v[i] - SOC_a_v[i]) * 1.5  #kWh
-        rate = 14
-        time = int(t_a_v[i])
-        
-        while required_energy > 0:
-
-            if EVChargingImmediate[time] > rate:
-                time+=1
-            
-            elif ( EVChargingImmediate[time] + required_energy ) > rate:
-                available = rate - EVChargingImmediate[time]
-                EVChargingImmediate[time]+= available
-                required_energy -= available
-                time+=1
-
-            else:
-                EVChargingImmediate[time]+= required_energy
-                required_energy = 0
-    
-    return EVChargingImmediate
-    
-    print('Calculated Immediate Charging Slots')
-
 
 projPath = './results/' + projName
 
@@ -133,45 +81,14 @@ if not os.path.exists(projPath):
     os.makedirs(projPath + '/csv')
     os.makedirs(projPath + '/figures')
 
-####################### Immediate Charging Slots #######################
-
-if os.path.isfile(projPath + '/npyFiles/EVChargingImmediate.npy'):
-    EVChargingImmediate = np.load(projPath + '/npyFiles/EVChargingImmediate.npy')
-    print('File found: Loaded Immediate Charging Results from ./npyFiles\n')
-    
-else:
-    EVChargingImmediate = get_EVimmediateCharge(days=days)
-    np.save(projPath + '/npyFiles/EVChargingImmediate.npy', EVChargingImmediate)
-    print('Saving Immediate Charging Results to ./npyFiles\n')
-
 ####################### V2B Charging/Discharging Slots #######################
 
+V2B = Optimization(chargingRate = charging_rate, chargingEff = charging_eff , 
+                   gammaPeak = 1/3, gammaCost = 1/3, gammaCarbon = 1/3, 
+                   lowestSoC = EVLowerBoundSoC, highestSoC = EVUpperBoundSoC, projName=projName)
 
-if os.path.isfile(projPath + '/npyFiles/EVchargingV2Bnew.npy'):
-    EVChargingV2B = np.load(projPath + '/npyFiles/EVchargingV2Bnew.npy')
-    print('File found: Loaded V2B Charging/Discharging Results from ./npyFiles\n')
-    
-else:
-    EVChargingV2B = V2B.optimize_ev(days = days, length = 24, iteration = iteration)
-    np.save(projPath + '/npyFiles/EVchargingV2Bnew.npy', EVChargingV2B)
-    print('Saving V2B Charging/Discharging Results to ./npyFiles\n')
-    
-# if os.path.isfile(projPath + '/npyFiles/EVchargingV2Bnew_12.npy'):
-#     EVChargingV2B = np.load(projPath + '/npyFiles/EVchargingV2Bnew_12.npy')
-#     print('File found: Loaded V2B Charging_12/Discharging Results from ./npyFiles\n')
-    
-# else:
-#     EVChargingV2B = V2B.optimize_ev(days = days, length = 12, iteration = iteration)
-#     np.save(projPath + '/npyFiles/EVchargingV2Bnew_12.npy', EVChargingV2B)
-#     print('Saving V2B Charging_12/Discharging Results to ./npyFiles\n')
-    
-if os.path.isfile(projPath + '/npyFiles/EVchargingV2Bnewnew_6.npy'):
-    EVChargingV2B = np.load(projPath + '/npyFiles/EVchargingV2Bnewnew_6.npy')
-    print('File found: Loaded V2B Charging_6/Discharging Results from ./npyFiles\n')
-    
-else:
-    EVChargingV2B = V2B.optimize_ev(days = days, length = 6, iteration = iteration)
-    np.save(projPath + '/npyFiles/EVchargingV2Bnewnew_6.npy', EVChargingV2B)
-    print('Saving V2B Charging_6/Discharging Results to ./npyFiles\n')
-    
-    
+window_length = 6
+
+EVChargingV2B = V2B.optimize_ev(days = days, length = window_length, iteration = iteration)
+np.save(projPath + '/npyFiles/EVchargingV2B_'+str(window_length)+'.npy', EVChargingV2B)
+print('Saving V2B Charging_'+str(window_length)+'/Discharging Results to ./npyFiles\n')

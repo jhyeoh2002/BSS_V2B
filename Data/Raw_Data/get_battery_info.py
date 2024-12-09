@@ -11,7 +11,8 @@ n_station = 38*2 # Number of batteries at the station
 SOC_thr = 0.7 # Required leaving SOC
 
 # Choose tnum
-tnum = 168 # 24 for a day optimization, 168 for a week optimization
+# tnum = 2928 # 24 for a day optimization, 168 for a week optimization
+tnum = 2928
 
 def generate_escooter_data(tnum = tnum, n_station=n_station, SOC_thr=SOC_thr, max_stay_duration=24):
     
@@ -32,6 +33,7 @@ def generate_escooter_data(tnum = tnum, n_station=n_station, SOC_thr=SOC_thr, ma
         N_V_temp = [int(max((available[i] - available[i + 1]),0)) for i in range(len(available) - 1)]
         N_V_temp.append(0) 
         N_V_t += N_V_temp
+        print(len(N_V_temp))
 
         # n_total: Total battery numbers if each battery is numbered separately
         n_total = sum(N_V_t) + n_station
@@ -61,13 +63,15 @@ def generate_escooter_data(tnum = tnum, n_station=n_station, SOC_thr=SOC_thr, ma
                 if available_batteries:
                     battery = available_batteries.pop(0)  # Remove the earliest battery to arrive
                     battery['departure'] = hour
+                    if hour>tnum:
+                        raise ValueError(f"hour is {hour}, larger than tnum")
+            
         t_d_v = [b['departure'] if b['departure'] is not None else tnum for b in sorted(battery_state, key=lambda x: x['id'])]
 
         # a_vt: Availability of each battery arrives or not
         a_vt = [[0] * tnum for _ in range(n_total)]
 
         for v in range(n_total):
-
             for t in range(t_a_v[v], t_d_v[v]):
                 a_vt[v][t] = 1
 

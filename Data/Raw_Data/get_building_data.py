@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import os
 
-def get_building_data(stardate="2024-01-29",  enddate="2024-2-10"):
+def get_building_data(startdate="2024-01-29",  enddate="2024-2-10"):
     
     if os.path.isfile('./Cleaned_Data/building.csv'):
         print("building data found.")
@@ -13,7 +13,7 @@ def get_building_data(stardate="2024-01-29",  enddate="2024-2-10"):
         url = "https://epower.ga.ntu.edu.tw/fn4/report2.aspx"
         all_dataframes = []
 
-        dates = pd.date_range(start=stardate, end=enddate, freq="d")
+        dates = pd.date_range(start=startdate, end=enddate, freq="d")
         dates = dates.strftime('%Y-%m-%d')
 
         for date in dates:
@@ -62,6 +62,7 @@ def get_building_data(stardate="2024-01-29",  enddate="2024-2-10"):
             complete_df = pd.concat(all_dataframes, ignore_index=True)
             
         complete_df.to_csv('./Raw_Data/all_building.csv', index=False)
+        
         complete_df = pd.read_csv('./Raw_Data/all_building.csv')
 
         building = complete_df.drop(columns=['時間/館舍'])
@@ -76,7 +77,7 @@ def get_building_data(stardate="2024-01-29",  enddate="2024-2-10"):
         building['-推廣中心-'] = pd.to_numeric(building['-推廣中心-'], errors='coerce')
         building['filled'] = building['-推廣中心-'].fillna(building['-推廣中心-'].shift(-24 * 7))
         building['energy (kWh)'] = building['filled'].fillna(building['filled'].shift(24 * 7))
-        building['-推廣中心-'].to_csv('./Cleaned_Data/building.csv')
+        building['energy (kWh)'].to_csv('./Cleaned_Data/building.csv')
 
         print(building)
         
